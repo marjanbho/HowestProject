@@ -58,8 +58,10 @@ df = df[df["history_last6_uci"].str.split("|").str[-4:].str.join("|") == key]
 This uses pandas' vectorized string operations implemented in C.
 
 **Expected Impact:**
-- **3-5x faster** history filtering
+- **2-3x faster** history filtering (moderate improvement)
 - Particularly beneficial for `fen_last4` and `fen_last2` query levels
+
+**Note:** While this is faster than `.apply()`, the optimal solution would be to pre-compute `history_last4` and `history_last2` as separate columns in the Parquet dataset (see Future Optimizations).
 
 ### 4. Smarter Query Level Ordering
 **What:** Reordered query levels to try most restrictive (and typically fastest) levels first.
@@ -75,7 +77,7 @@ This uses pandas' vectorized string operations implemented in C.
 |--------------|------------------|----------|
 | Query Caching | 100-1000x | Repeated identical queries |
 | Early Termination | 10-100x | Common positions with many examples |
-| Vectorized Operations | 3-5x | History key filtering |
+| Vectorized Operations | 2-3x | History key filtering |
 | Combined Effect | 5-50x | Typical usage during gameplay |
 
 ## Configuration
@@ -105,11 +107,14 @@ PLY_WINDOW = 20           # Ply filter window
 
 ## Future Optimization Opportunities
 
-1. **Pre-compute history keys:** Store `history_last4` and `history_last2` as columns in Parquet
+1. **Pre-compute history keys:** Store `history_last4` and `history_last2` as separate columns in Parquet
+   - This would eliminate the need for string splitting during filtering
+   - Expected additional 3-5x speedup for those query levels
 2. **Indexing:** Add secondary indices on frequently queried columns
 3. **Parallel scanning:** Use multiple threads to scan different Parquet files
 4. **Sampling before filtering:** For very large result sets, sample first then filter
 5. **Persistent cache:** Store cache to disk between sessions
+6. **Batch queries:** Process multiple queries together to amortize dataset loading costs
 
 ## Monitoring
 
